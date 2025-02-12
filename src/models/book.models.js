@@ -50,6 +50,10 @@ const bookSchema = new mongoose.Schema({
     added_date: {
         type: Date,
         default: Date.now
+    },
+    cloudinary_id: {
+        type: String,
+        default: "",
     }
 }, {
     timestamps: true

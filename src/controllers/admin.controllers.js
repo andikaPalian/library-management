@@ -103,10 +103,12 @@ const loginAdmin = async (req, res) => {
 
             return res.status(200).json({
                 message: "Admin login successfully",
-                admin: {
-                    name: admin.name,
-                    email: admin.email,
-                    admin_role: admin.admin_role,
+                data: {
+                    admin: {
+                        name: admin.name,
+                        email: admin.email,
+                        admin_role: admin.admin_role
+                    },
                     token: token
                 }
             })

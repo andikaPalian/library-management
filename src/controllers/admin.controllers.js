@@ -93,7 +93,7 @@ const loginAdmin = async (req, res) => {
             });
         }
 
-        const isMatch = await bcrypt.compare(password, existingAdmin.password);
+        const isMatch = await bcrypt.compare(password, admin.password);
         if (isMatch) {
             const token = jwt.sign({
                 id: admin._id,

@@ -121,4 +121,74 @@ const loginAdmin = async (req, res) => {
     }
 }
 
-export {registerAdmin, loginAdmin};
+const changeAdminRole = async (req, res) => {
+    try {
+        const adminId = req.admin.adminId;
+        const {adminID, admin_role} = req.body;
+        if (!adminId?.trim() || !admin_role?.trim()) {
+            return res.status(400).json({
+                message: "All fields are required",
+            });
+        }
+
+        const admin = await Admin.findOne({
+            _id: adminId,
+            admin_role: "SUPER_ADMIN"
+        });
+        if (!admin) {
+            return res.status(404).json({
+                message: "Admin not found",
+            });
+        }
+
+        const adminInfo = await Admin.findOne({
+            _id: adminID,
+        });
+        if (!adminInfo) {
+            return res.status(404).json({
+                message: "Admin not found",
+            });
+        }
+
+        const validRoles = ["LIBRARIAN"];
+        if (!validRoles.includes(admin_role)) {
+            return res.status(400).json({
+                message: "Invalid admin role",
+            });
+        }
+
+        if (adminInfo.admin_role === "SUPER_ADMIN") {
+            return res.status(400).json({
+                message: "Cannot change the role of a super admin",
+            });
+        }
+
+        if (adminInfo.admin_role === admin_role) {
+            return res.status(400).json({
+                message: "Admin role is already set to the provided role",
+            });
+        }
+
+        adminInfo.admin_role = admin_role;
+        await adminInfo.save();
+
+        res.status(200).json({
+            message: "Admin role updated successfully",
+            data: {
+                admin: {
+                    name: adminInfo.name,
+                    email: adminInfo.email,
+                    admin_role: adminInfo.admin_role
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Error during changing admin role:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    }
+}
+
+export {registerAdmin, loginAdmin, changeAdminRole};

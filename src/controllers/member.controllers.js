@@ -1,18 +1,12 @@
-import Member from "../models/member.models";
+import Member from "../models/member.models.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
 
-async function generateMemberId() {
-    const lastMember = await Member.findOne().sort({ createdAt: -1 });
-    const lastId = lastMember ? parseInt(lastMember.memberID.replace("LIB", "")) : 0;
-    return `LIB${String(lastId + 1).padStart(4, "0")}`;
-}
-
 const registerMember = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
-        if (!name?.trim() || !email?.trim() || !password?.trim()) {
+        const { name, email, password, phone, address } = req.body;
+        if (!name?.trim() || !email?.trim() || !password?.trim() || !phone?.trim() || !address) {
             return res.status(400).json({
                 message: "All fields are required",
             });
@@ -37,6 +31,12 @@ const registerMember = async (req, res) => {
             });
         }
 
+        if (!validator.isMobilePhone(phone, "id-ID")) {
+            return res.status(400).json({
+                message: "Invalid phone number format. Please provide a valid Indonesian phone number",
+            });
+        }
+
         const existingMember = await Member.findOne({
             email: email.toLowerCase().trim(),
         });
@@ -52,8 +52,8 @@ const registerMember = async (req, res) => {
             name: name.trim(),
             email: email.toLowerCase().trim(),
             password: hashedPassword,
-            member_status,
-            memberID: generateMemberId()
+            phone: phone.trim(),
+            address: address,
         });
         await member.save();
 
@@ -65,6 +65,8 @@ const registerMember = async (req, res) => {
             member: {
                 name: memberResponse.name,
                 email: memberResponse.email,
+                phone: memberResponse.phone,
+                address: memberResponse.address,
                 member_status: memberResponse.member_status,
                 memberID: memberResponse.memberID
             }
@@ -78,4 +80,62 @@ const registerMember = async (req, res) => {
     }
 }
 
-export {registerMember};
+const loginMember = async (req, res) => {
+    try {
+        const {email, password} = req.body;
+        if (!email?.trim() || !password?.trim()) {
+            return res.status(400).json({
+                message: "All fields are required",
+            });
+        }
+
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({
+                message: "Invalid email format"
+            });
+        }
+
+        const member = await Member.findOne({
+            email: email.toLowerCase().trim(),
+        });
+        if (!member) {
+            return res.status(404).json({
+                message: "Member not found",
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, member.password);
+        if (isMatch) {
+            const token = jwt.sign({
+                id: member._id
+            }, process.env.JWT_SECRET, {expiresIn: "1d"});
+            member.password = undefined;
+            return res.status(200).json({
+                message: "Member login successfully",
+                data: {
+                    member: {
+                        name: member.name,
+                        email: member.email,
+                        phone: member.phone,
+                        address: member.address,
+                        member_status: member.member_status,
+                        memberID: member.memberID
+                    },
+                    token: token
+                }
+            });
+        } else {
+            return res.status(401).json({
+                message: "Invalid credentials",
+            });
+        }
+    } catch (error) {
+        console.error("Error during member login:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    }
+}
+
+export {registerMember, loginMember};

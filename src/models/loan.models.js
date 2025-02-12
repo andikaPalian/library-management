@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 const loanSchema = new mongoose.Schema({
-    books: {
+    books: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Book",
         required: true
-    },
+    }],
     borrower: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Member",
@@ -13,7 +13,7 @@ const loanSchema = new mongoose.Schema({
     },
     borrow_date: {
         type: Date,
-        required: Date.now
+        default: Date.now
     },
     due_date: {
         type: Date,
@@ -24,7 +24,7 @@ const loanSchema = new mongoose.Schema({
         default: null
     },
     // Tambahkan denda jika terlambat mengembalikan buku
-    fine_amoount: {
+    fine_amount: {
         type: Number,
         default: 0,
         min: 0

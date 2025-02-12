@@ -46,7 +46,6 @@ const registerAdmin = async (req, res) => {
             name: name.trim(),
             email: email.toLowerCase().trim(),
             password: hashedPassword,
-            admin_role
         });
         await admin.save();
 

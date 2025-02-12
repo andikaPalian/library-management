@@ -1,7 +1,9 @@
 import Member from "../models/member.models.js";
+import Loan from "../models/loan.models.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
+import Book from "../models/book.models.js";
 
 const registerMember = async (req, res) => {
     try {
@@ -138,4 +140,66 @@ const loginMember = async (req, res) => {
     }
 }
 
-export {registerMember, loginMember};
+const memberDashboard = async (req, res) => {
+    try {
+        const memberId = req.params.memberId;
+
+        const member = await Member.findById(memberId);
+        if (!member) {
+            return res.status(404).json({
+                message: "Member not found",
+            });
+        }
+
+        const loans = await Loan.find({borrower: memberId}).populate({
+            path: "books",
+            select: "title author cover_image",
+            model: Book
+        }).sort({createdAt: -1});
+
+        const loanHistory = loans.map((loan) => {
+            let fine = 0;
+            const today = new Date();
+
+            if (!loan.return_date && loan.due_date > today) {
+                // Hitung denda
+                const daysLate = Math.ceil((today - loan.due_date) / 1000 * 60 * 60 * 24);
+                fine = daysLate * 5000;
+            }
+
+            return {
+                books: loan.books.map(book => ({
+                    title: book?.title,
+                    author: book?.author,
+                    cover_image: book?.cover_image && book.cover_image !== "" ? book.cover_image : "https://example.com/default-cover.jpg"
+                })),
+                borrow_date: loan.borrow_date,
+                due_date: loan.due_date,
+                return_date: loan.return_date,
+                fine_amount: loan.fine_amount || fine,
+                status: loan.return_date ? "returned" : loan.due_date > today ? "overdue" : "borrowed"
+            };
+        });
+
+        res.status(200).json({
+            message: "Member dashboard data",
+            member: {
+                name: member.name,
+                email: member.email,
+                phone: member.phone,
+                address: member.address,
+                member_status: member.member_status,
+                memberID: member.memberID
+            },
+            loan_history: loanHistory
+        })
+    } catch (error) {
+        console.error("Error during getting member dashboard data:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    }
+}
+
+export {registerMember, loginMember, memberDashboard};

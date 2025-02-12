@@ -41,13 +41,11 @@ const bookSchema = new mongoose.Schema({
     },
     cover_image: {
         type: String,
-        required: false, 
         default: ""
     },
     description: {
         type: String,
-        required: false,
-        trim: true
+        required: true,
     },
     added_date: {
         type: Date,

@@ -143,6 +143,11 @@ const loginMember = async (req, res) => {
 const memberDashboard = async (req, res) => {
     try {
         const memberId = req.params.memberId;
+        const {status, page = 1, limit = 10} = req.query;
+        const query = {borrower: memberId};
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const skip = (pageNum - 1) * limitNum;
 
         const member = await Member.findById(memberId);
         if (!member) {
@@ -151,11 +156,29 @@ const memberDashboard = async (req, res) => {
             });
         }
 
-        const loans = await Loan.find({borrower: memberId}).populate({
+        const loans = await Loan.find(query).populate({
             path: "books",
             select: "title author cover_image",
             model: Book
-        }).sort({createdAt: -1});
+        }).sort({createdAt: -1}).skip(skip).limit(limitNum);
+
+        const totalLoanHistory = await Loan.countDocuments(query);
+
+        const borrowedBooks = await Loan.countDocuments({
+            borrower: memberId,
+            status: "borrowed"
+        }).populate("books", "title author cover_image");
+
+        const returnedBooks = await Loan.countDocuments({
+            borrower: memberId,
+            status: "returned"
+        }).populate("books", "title author cover_image");
+
+        const overdueBooks = await Loan.countDocuments({
+            borrower: memberId,
+            status: "borrowed",
+            return_date: {$lt: new Date()}
+        }).populate("books", "title author cover_image");
 
         const loanHistory = loans.map((loan) => {
             let fine = 0;
@@ -183,15 +206,23 @@ const memberDashboard = async (req, res) => {
 
         res.status(200).json({
             message: "Member dashboard data",
-            member: {
-                name: member.name,
-                email: member.email,
-                phone: member.phone,
-                address: member.address,
-                member_status: member.member_status,
-                memberID: member.memberID
-            },
-            loan_history: loanHistory
+            data: {
+                member: {
+                    name: member.name,
+                    email: member.email,
+                    phone: member.phone,
+                    address: member.address,
+                    member_status: member.member_status,
+                    memberID: member.memberID
+                },
+                borrowedBooks: borrowedBooks,
+                returnedBooks: returnedBooks,
+                overdueBooks: overdueBooks,
+                totalLoanHistory: totalLoanHistory,
+                currentPage: pageNum,
+                totalPages: Math.ceil(totalLoanHistory / limitNum),
+                loanHistory: loanHistory,
+            }
         })
     } catch (error) {
         console.error("Error during getting member dashboard data:", error);

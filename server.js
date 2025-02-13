@@ -10,6 +10,7 @@ import bookRouter from "./src/routes/book.routes.js";
 import cartRouter from "./src/routes/cart.routes.js";
 
 import "./src/job/checkMemberStatus.js";
+import loanRouter from "./src/routes/loan.routes.js";
 
 const app = express();
 const port = process.env.PORT;
@@ -23,6 +24,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/member", memberRouter);
 app.use("/api/books", bookRouter);
 app.use("/api/cart", cartRouter);
+app.use("/api/loan", loanRouter);
 
 // Handle multer errors
 app.use((err, req, res, next) => {

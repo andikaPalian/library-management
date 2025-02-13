@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
 import Book from "../models/book.models.js";
+import Cart from "../models/cart.models.js";
 
 const registerMember = async (req, res) => {
     try {
@@ -204,6 +205,9 @@ const memberDashboard = async (req, res) => {
             };
         });
 
+        const cartItems = await Cart.find({member: memberId}).populate("books", "title author cover_image");
+        const cartItemsCount = cartItems.length;
+
         res.status(200).json({
             message: "Member dashboard data",
             data: {
@@ -222,6 +226,12 @@ const memberDashboard = async (req, res) => {
                 currentPage: pageNum,
                 totalPages: Math.ceil(totalLoanHistory / limitNum),
                 loanHistory: loanHistory,
+                cartItems: cartItems.map(items => ({
+                    title: items.books[0].title,
+                    author: items.books[0].author,
+                    cover_image: items.books.cover_image && items.books.cover_image !== "" ? items.books.cover_image : "https://example.com/default-cover.jpg",
+                })),
+                totalCartItems: cartItemsCount
             }
         })
     } catch (error) {

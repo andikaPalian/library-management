@@ -30,7 +30,7 @@ cron.schedule("0 0 * * *", async () => {
                 const overdueDays = Math.ceil((new Date() - loan.due_date) / (1000 * 60 * 60 * 24));
                 return overdueDays > 7;
             }))) {
-                member.member_status = "INACTIVE";
+                member.member_status = "inactive";
                 member.total_fines = totalFine;
                 await member.save();
                 console.log(`🚨 Member ${member.name} is now INACTIVE due to overdue fines.`);

@@ -39,12 +39,17 @@ const loanSchema = new mongoose.Schema({
 });
 
 loanSchema.pre("save", function(next) {
-    if (this.return_date && this.return_date > this.due_date) {
+    // Jika buku belum di kembalikan tapi sudah melewati tanggal jatuh tempo, ubah status menjadi overdue
+    if (this.return_date && this.due_date < new Date()) {
+        this.status = "overdue";
+    }
+
+    if (this.return_date && this.status === "returned" && this.return_date > this.due_date) {
         // Hitung hari keterlambatan
         const overdueDays = Math.ceil((this.return_date - this.due_date) / (1000 * 60 * 60 * 24));
         // Denda Rp5.000 per hari keterlambatan
         const finePerDay = 5000;
-        this.fine_amoount = overdueDays * finePerDay;
+        this.fine_amount = overdueDays * finePerDay;
     }
     next();
 });

@@ -185,7 +185,7 @@ const memberDashboard = async (req, res) => {
             let fine = 0;
             const today = new Date();
 
-            if (!loan.return_date && loan.due_date > today) {
+            if (!loan.return_date && loan.due_date < today) {
                 // Hitung denda
                 const daysLate = Math.ceil((today - loan.due_date) / 1000 * 60 * 60 * 24);
                 fine = daysLate * 5000;
@@ -201,7 +201,7 @@ const memberDashboard = async (req, res) => {
                 due_date: loan.due_date,
                 return_date: loan.return_date,
                 fine_amount: loan.fine_amount || fine,
-                status: loan.return_date ? "returned" : loan.due_date > today ? "overdue" : "borrowed"
+                status: loan.return_date ? "returned" : loan.due_date > today ? "borrowed" : "overdue"
             };
         });
 

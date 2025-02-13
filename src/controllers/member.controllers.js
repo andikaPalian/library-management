@@ -205,8 +205,15 @@ const memberDashboard = async (req, res) => {
             };
         });
 
-        const cartItems = await Cart.find({member: memberId}).populate("books", "title author cover_image");
-        const cartItemsCount = cartItems.length;
+        const cartItems = await Cart.find({member: memberId}).populate("books", "title author cover_image").lean();
+        const cartItemsFormatted = cartItems.flatMap(item =>
+            (item.books || []).map(book => ({
+                title: book?.title || "Unknown Title",
+                author: book?.author || "Unknown Author",
+                cover_image: book?.cover_image && book.cover_image !== "" ? book.cover_image : "https://example.com/default-cover.jpg",
+            }))
+        );
+        const cartItemsCount = cartItemsFormatted.length;
 
         res.status(200).json({
             message: "Member dashboard data",
@@ -226,11 +233,7 @@ const memberDashboard = async (req, res) => {
                 currentPage: pageNum,
                 totalPages: Math.ceil(totalLoanHistory / limitNum),
                 loanHistory: loanHistory,
-                cartItems: cartItems.map(items => ({
-                    title: items.books[0].title,
-                    author: items.books[0].author,
-                    cover_image: items.books.cover_image && items.books.cover_image !== "" ? items.books.cover_image : "https://example.com/default-cover.jpg",
-                })),
+                cartItems: cartItemsFormatted,
                 totalCartItems: cartItemsCount
             }
         })

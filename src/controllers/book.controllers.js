@@ -290,6 +290,7 @@ const listBooks = async (req, res) => {
         res.status(200).json({
             message: "List of books",
             book: book.map(book => ({
+                bookId: book._id,
                 title: book.title,
                 author: book.author,
                 isbn: book.isbn,

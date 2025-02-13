@@ -7,6 +7,7 @@ import adminRouter from "./src/routes/admin.routes.js";
 import memberRouter from "./src/routes/member.routes.js";
 import connectCloudinary from "./src/config/cloudinary.js";
 import bookRouter from "./src/routes/book.routes.js";
+import cartRouter from "./src/routes/cart.routes.js";
 
 import "./src/job/checkMemberStatus.js";
 
@@ -21,6 +22,7 @@ app.use(express.json());
 app.use("/api/admin", adminRouter);
 app.use("/api/member", memberRouter);
 app.use("/api/books", bookRouter);
+app.use("/api/cart", cartRouter);
 
 // Handle multer errors
 app.use((err, req, res, next) => {

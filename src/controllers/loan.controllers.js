@@ -302,4 +302,119 @@ const listLoan = async (req, res) => {
     }
 }
 
-export {checkOutLoan, memberLoan, listLoan};
+const confirmLoanStatus = async (req, res) => {
+    try {
+        const adminId = req.admin.adminId;
+        const {loanId} = req.params;
+        const {status} = req.body;
+
+        const admin = await Admin.findById(adminId);
+        if (!admin) {
+            return res.status(404).json({
+                message: "Admin not found"
+            });
+        }
+
+        const loan = await Loan.findById(loanId);
+        if (!loan) {
+            return res.status(404).json({
+                message: "Loan not found"
+            });
+        }
+
+        const validStatus = ["borrowed", "returned", "overdue"];
+        if (!validStatus.includes(status)) {
+            return res.status(400).json({
+                message: "Invalid status"
+            });
+        }
+
+        if (loan.status === status) {
+            return res.status(400).json({
+                message: `Loan is already marked as ${status}`
+            });
+        }
+
+        const previousStatus = loan.status;
+        loan.status = status;
+
+        if (previousStatus === "borrowed" && status === "returned") {
+            loan.status = "returned";
+            loan.return_date = new Date();
+            await Book.updateMany(
+                {
+                    _id: {
+                        $in: loan.books
+                    }
+                },
+                {
+                    $inc: {
+                        available_copies: 1
+                    }
+                }
+            );
+
+            // Jika terlambat mengembalikan buku, hitung denda
+            if (loan.return_date > loan.due_date) {
+                const overdueDays = Math.ceil((loan.return_date - loan.due_date) / (1000 * 60 * 60 * 24));
+                const finePerDay = 5000;
+                loan.fine_amount = overdueDays * finePerDay;
+            } else {
+                loan.fine_amount = 0;
+            }
+        } else if (previousStatus === "returned" && status === "borrowed") {
+            const bookToBorrow = await Book.find(
+                {
+                    _id: {
+                        $in: loan.books.map(book => book._id)
+                    }
+                }
+            );
+
+            // Cek apakah semua buku tersedia untuk dipinjam
+            for (const book of bookToBorrow) {
+                if (book.available_copies === 0) {
+                    return res.status(400).json({
+                        message: `Book "${book.title}" is not available for borrowing`
+                    });
+                }
+            }
+
+            loan.status = "borrowed";
+            loan.return_date = null;
+            await Book.updateMany(
+                {
+                    _id: {
+                        $in: loan.books
+                    }
+                },
+                {
+                    $inc: {
+                        available_copies: -1
+                    }
+                }
+            )
+        } else {
+            loan.return_date = null;
+        }
+        
+
+        await loan.save();
+
+        res.status(200).json({
+            message: "Loan status updated successfully",
+            loan: {
+                status: loan.status,
+                return_date: loan.return_date
+            }
+        });
+    } catch (error) {
+        console.error("Error during updating loan status:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        })
+    }
+}
+
+export {checkOutLoan, memberLoan, listLoan, confirmLoanStatus};

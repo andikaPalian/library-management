@@ -190,4 +190,116 @@ const memberLoan = async (req, res) => {
     }
 }
 
-export {checkOutLoan, memberLoan};
+const listLoan = async (req, res) => {
+    try {
+        const adminId = req.admin.adminId;
+        const {memberID, status, page = 1, limit = 10} = req.query;
+        const query = {};
+
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        const admin = await Admin.findById(adminId);
+        if (!admin) {
+            return res.status(404).json({
+                message: "Admin not found"
+            });
+        }
+
+        const validStatus = ["borrowed", "returned", "overdue"];
+        if (status && !validStatus.includes(status)) {
+            return res.status(400).json({
+                message: "Invalid status"
+            });
+        }
+
+        if (memberID) {
+            const member = await Member.findOne({
+                memberID: memberID
+            });
+            if (!member) {
+                return res.status(404).json({
+                    message: "Member not found"
+                });
+            }
+            query.borrower = member._id;
+        }
+
+        if (status) {
+            query.status = status;
+        }
+
+        const loans = await Loan.find(query).populate("books", "title author cover_image").populate("borrower", "name memberID").sort({borrow_date: -1}).skip(skip).limit(limitNum);
+        
+        // Hitung total peminjaman
+        const totalLoanCount = await Loan.countDocuments(query);
+
+        // Hitung jumlah peminjaman berdasarkan status
+        const totalLoanStatus = await Loan.aggregate([
+            {
+                $match: query
+            },
+            {
+                $group: {
+                    _id: "$status",
+                    count: {
+                        $sum: 1
+                    }
+                }
+            }
+        ]);
+
+        // Hitung jumlah anggota yang memiliki peminjaman
+        const totalBorrowers = await Loan.distinct("borrower", query).then(borrow => borrow.length);
+
+        // Format data peminjaman
+        const loanHistory = loans.map((loan) => {
+            let fine = 0;
+            const today = new Date();
+
+            if (loan.due_date < today && !loan.return_date) {
+                // Hitung denda jika overdue
+                const daysLate = Math.ceil((today - loan.due_date) / (1000 * 60 * 60 * 24));
+                fine = daysLate * 5000;
+            }
+
+            return {
+                member: {
+                    name: loan.borrower.name,
+                    memberID: loan.borrower.memberID
+                },
+                books: loan.books.map(book => ({
+                    title: book.title,
+                    author: book.author,
+                    cover_image: book.cover_image || "https://example.com/default-cover.jpg"
+                })),
+                borrow_date: loan.borrow_date,
+                due_date: loan.due_date,
+                return_date: loan.return_date,
+                fine_amount: loan.fine_amount || fine,
+                status: loan.status
+            };
+        });
+
+        res.status(200).json({
+            message: "Loan list retrieved successfully",
+            data: {
+                loan: loanHistory,
+                totalLoanCount,
+                totalLoanStatus,
+                totalBorrowers,
+                currentPage: pageNum,
+                totalPages: Math.ceil(totalLoanCount / limitNum)
+            }
+        });
+    } catch (error) {
+        console.error("Error during listing loan:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    }
+}
+
+export {checkOutLoan, memberLoan, listLoan};

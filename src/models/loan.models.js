@@ -40,11 +40,11 @@ const loanSchema = new mongoose.Schema({
 
 loanSchema.pre("save", function(next) {
     // Jika buku belum di kembalikan tapi sudah melewati tanggal jatuh tempo, ubah status menjadi overdue
-    if (this.return_date && this.due_date < new Date()) {
+    if (!this.return_date && this.due_date < new Date()) {
         this.status = "overdue";
     }
 
-    if (this.return_date && this.status === "returned" && this.return_date > this.due_date) {
+    if (this.return_date && this.return_date > this.due_date) {
         // Hitung hari keterlambatan
         const overdueDays = Math.ceil((this.return_date - this.due_date) / (1000 * 60 * 60 * 24));
         // Denda Rp5.000 per hari keterlambatan

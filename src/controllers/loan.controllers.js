@@ -94,4 +94,101 @@ const checkOutLoan = async (req, res) => {
     }
 }
 
-export {checkOutLoan};
+const listLoan = async (req, res) => {
+    try {
+        const memberId = req.member.memberId;
+        const {status, page = 1, limit = 10} = req.query;
+        const query = {borrower: memberId};
+
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        const member = await Member.findById(memberId);
+        if (!member) {
+            return res.status(404).json({
+                message: "Member not found"
+            });
+        }
+
+        const validStatus = ["borrowed", "returned", "overdue"];
+        if (status && !validStatus.includes(status)) {
+            return res.status(400).json({
+                message: "Invalid status"
+            });
+        }
+
+        if (status) {
+            query.status = status;
+        }
+
+        const loans = await Loan.find(query).populate("books", "title author cover_image").sort({borrow_date: -1}).skip(skip).limit(limitNum);
+
+        const totalLoan = await Loan.countDocuments(query);
+        const totalBorrowedBooks = await Loan.countDocuments({
+            borrower: memberId,
+            status: "borrowed"
+        });
+        const totalReturnedBooks = await Loan.countDocuments({
+            borrower: memberId,
+            status: "returned"
+        });
+        const totalOverdueBooks = await Loan.countDocuments({
+            borrower: memberId,
+            status: "overdue"
+        });
+
+        const totalFine = await Loan.aggregate([
+            {
+                $match: {
+                    borrower: memberId,
+                    status: "returned"
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalFine: {
+                        $sum: "$fine"
+                    }
+                }
+            }
+        ]);
+
+        res.status(200).json({
+            message: "Member loan list",
+            data: {
+                loans: {
+                    loan: loans.map(loan => ({
+                        id: loan._id,
+                        borrower: loan.borrower,
+                        books: loan.books.map(book => ({
+                            id: book._id,
+                            title: book.title,
+                            author: book.author,
+                            cover_image: book.cover_image
+                        })),
+                        borrow_date: loan.borrow_date,
+                        due_date: loan.due_date,
+                        return_date: loan.return_date,
+                        status: loan.status,
+                        fine: loan.fine
+                    }))
+                },
+                totalLoan: totalLoan,
+                totalBorrowedBooks: totalBorrowedBooks,
+                totalReturnedBooks: totalReturnedBooks,
+                totalOverdueBooks: totalOverdueBooks,
+                totalFine: totalFine.length > 0 ? totalFine[0].totalFine : 0
+            }
+        });
+    } catch (error) {
+        console.error("Error during listing member loan:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    }
+}
+
+export {checkOutLoan, listLoan};

@@ -94,7 +94,7 @@ const checkOutLoan = async (req, res) => {
     }
 }
 
-const listLoan = async (req, res) => {
+const memberLoan = async (req, res) => {
     try {
         const memberId = req.member.memberId;
         const {status, page = 1, limit = 10} = req.query;
@@ -161,7 +161,6 @@ const listLoan = async (req, res) => {
                 loans: {
                     loan: loans.map(loan => ({
                         id: loan._id,
-                        borrower: loan.borrower,
                         books: loan.books.map(book => ({
                             id: book._id,
                             title: book.title,
@@ -191,4 +190,4 @@ const listLoan = async (req, res) => {
     }
 }
 
-export {checkOutLoan, listLoan};
+export {checkOutLoan, memberLoan};
